@@ -72,7 +72,7 @@ class FileHeader:
         original_seek = archive.seek(0, os.SEEK_CUR)
 
         fh = FileHeader()
-        archive.seek(header_position + 16, os.SEEK_SET)
+        archive.seek(header_position + 16, os.SEEK_CUR)
         bytes_for_file_path = int.from_bytes(archive.read(2), 'little')
         archive.seek(original_seek, os.SEEK_SET)
         fh.header_size = sum(BYTES_FOR.values()) + bytes_for_file_path
