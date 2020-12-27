@@ -58,6 +58,18 @@ class FileHeader:
     def file_path(self):
         return self.header_array[18:18 + self.file_path_length].decode()
 
+    @file_path.setter
+    def file_path(self, value):
+        bytes_for_file_path = len(value)
+        new_header_array_size = sum(BYTES_FOR.values()) + bytes_for_file_path
+        new_header_array = bytearray(new_header_array_size)
+        new_header_array[0:16] = self.header_array[0:16]
+
+        self.header_size = new_header_array_size
+        self.header_array = new_header_array
+        self._set_file_path_length(bytes_for_file_path)
+        self._set_file_path(value)
+
     @staticmethod
     def from_archive(archive, header_position: int = 0):
         """
