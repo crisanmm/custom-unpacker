@@ -6,6 +6,8 @@ from typing import *
 
 from FileHeader import FileHeader
 
+CHUNK_SIZE = 512
+
 
 def _process_renaming(renaming: Sequence[Tuple[Union[int, str], str]],
                       file_header_list: List[FileHeader]) -> Dict[str, str]:
@@ -30,16 +32,15 @@ def _process_file_header_list(renaming: Dict[str, str],
 
 class Cup:
     @staticmethod
-    def get_header_list(archive_path: str):
+    def header_list_from_archive(archive_path: Union[str, bytes, PathLike]) -> List[FileHeader]:
         file_header_list = []
-
         with open(archive_path, 'rb') as archive:
             file_header = FileHeader.from_archive(archive)
             file_header_list.append(file_header)
             header_list_sentinel = file_header.file_offset
 
             current_seek = archive.seek(file_header.header_size, os.SEEK_SET)
-            while current_seek != header_list_sentinel:
+            while current_seek < header_list_sentinel:
                 file_header = FileHeader.from_archive(archive)
                 file_header_list.append(file_header)
                 current_seek = archive.seek(file_header.header_size, os.SEEK_CUR)
@@ -48,12 +49,8 @@ class Cup:
         return file_header_list
 
     @staticmethod
-    def create_archive(*file_paths, archive_name="archive.cup"):
+    def header_list_from_files(*file_paths: Union[str, bytes, PathLike]) -> List[FileHeader]:
         file_header_list = []
-
-        # TODO: migrate to pathlib
-
-        # create headers
         for file_path in file_paths:
             if (Path.cwd() / Path(file_path)).exists():
                 # print('file exists')
@@ -62,27 +59,27 @@ class Cup:
                 # print("file doesn't exist")
                 pass
 
-        # set file offset for each header
-        header_size_list = map(lambda header: header.header_size, file_header_list)
-        current_offset = sum(header_size_list)
+        current_offset = sum(map(lambda header: header.header_size, file_header_list))
         for file_header in file_header_list:
-            # print(current_offset)
             file_header.set_offset(current_offset)
             current_offset += file_header.file_size
+        return file_header_list
 
-        # write headers and files to archive file
+    @staticmethod
+    def pack(*file_paths: Union[str, bytes, PathLike],
+             archive_name: Union[str, bytes, PathLike] = "archive.cup") -> None:
+        file_header_list = Cup.header_list_from_files(*file_paths)
         with open(archive_name, 'wb') as archive:
             for file_header in file_header_list:
                 archive.write(file_header.header_array)
-
             for file_path in file_paths:
                 with open(file_path, 'rb') as file:
-                    while chunk := file.read(1024):
+                    while chunk := file.read(CHUNK_SIZE):
                         archive.write(chunk)
 
     @staticmethod
-    def list(archive_path):
-        file_header_list = Cup.get_header_list(archive_path)
+    def list(archive_path: Union[str, bytes, PathLike]) -> List[FileHeader]:
+        file_header_list = Cup.header_list_from_archive(archive_path)
 
         print(f'{"No":3}{"Size":12}{"Last access time":25}Name')
         for index, file_header in enumerate(file_header_list):
@@ -91,9 +88,11 @@ class Cup:
         return file_header_list
 
     @staticmethod
-    def unpack(*renaming: Tuple[Union[int, str], str], archive_path: str, destination_path: str):
+    def unpack(*renaming: Tuple[Union[int, str], str],
+               archive_path: Union[str, bytes, PathLike],
+               destination_path: Union[str, bytes, PathLike]) -> None:
         archive_path = Path(archive_path).resolve()
-        file_header_list = Cup.get_header_list(archive_path)
+        file_header_list = Cup.header_list_from_archive(archive_path)
         previous_working_directory = os.getcwd()
 
         Cup._create_destination_path(destination_path)
@@ -105,20 +104,20 @@ class Cup:
         os.chdir(destination_path)
         with open(archive_path, 'rb') as archive:
             for file_header in file_header_list:
-                Cup._create_file_path(file_header.file_path, file_header)
-                Cup._unpack_file(file_header.file_path, archive, file_header)
+                Cup._create_file_path(file_header.file_path)
+                Cup._unpack_file(file_header, archive)
         os.chdir(previous_working_directory)
 
     @staticmethod
-    def _create_destination_path(destination_path: str):
+    def _create_destination_path(destination_path: Union[str, bytes, PathLike]) -> None:
         destination_path = Path(destination_path)
         if not destination_path.exists():
             destination_path.mkdir(parents=True)
             print(f"created {destination_path}")
 
     @staticmethod
-    def _create_file_path(file_path: Union[str, bytes, PathLike], file_header: FileHeader):
-        file_path = Path(file_header.file_path)
+    def _create_file_path(file_path: Union[str, bytes, PathLike]) -> None:
+        file_path = Path(file_path)
         if not file_path.exists():
             if not file_path.parent.exists():
                 file_path.parent.mkdir(parents=True)
@@ -127,11 +126,10 @@ class Cup:
             print(f"touched {file_path}")
 
     @staticmethod
-    def _unpack_file(file_path: Path, archive_file_object, file_header: FileHeader):
-        with open(file_path, 'wb') as file:
+    def _unpack_file(file_header: FileHeader, archive_file_object: BinaryIO) -> None:
+        with open(file_header.file_path, 'wb') as file:
             archive_file_object.seek(file_header.file_offset, os.SEEK_SET)
             bytes_to_read = file_header.file_size
-            while chunk := archive_file_object.read(min(512, bytes_to_read)):
-                bytes_to_read -= min(512, bytes_to_read)
-
+            while chunk := archive_file_object.read(min(CHUNK_SIZE, bytes_to_read)):
+                bytes_to_read -= min(CHUNK_SIZE, bytes_to_read)
                 file.write(chunk)
