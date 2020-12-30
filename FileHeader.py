@@ -1,6 +1,6 @@
 import os
-from os import path
 from os import PathLike
+from pathlib import Path
 from typing import *
 from typing import BinaryIO
 
@@ -14,8 +14,11 @@ BYTES_FOR = {
 
 class FileHeader:
     def __init__(self):
-        self.header_size = int()
         self.header_array = bytearray()
+
+    @property
+    def header_size(self) -> int:
+        return len(self.header_array)
 
     @property
     def file_offset(self) -> int:
@@ -61,14 +64,8 @@ class FileHeader:
 
     @file_path.setter
     def file_path(self, file_path) -> None:
+        file_path = str(file_path)
         bytes_for_file_path = len(file_path)
-        header_array_size = sum(BYTES_FOR.values()) + bytes_for_file_path
-        header_array = bytearray(header_array_size)
-        # header_array[0:16] = self.header_array[0:16]
-
-        self.header_size = header_array_size
-        self.header_array = header_array
-        self.file_path_length = bytes_for_file_path
         self.header_array[18:18 + bytes_for_file_path] = file_path.encode()
 
     @staticmethod
@@ -88,16 +85,25 @@ class FileHeader:
         archive.seek(header_position + 16, os.SEEK_CUR)
         bytes_for_file_path = int.from_bytes(archive.read(2), 'little')
         archive.seek(original_seek, os.SEEK_SET)
-        file_header.header_size = sum(BYTES_FOR.values()) + bytes_for_file_path
-        file_header.header_array = bytearray(archive.read(file_header.header_size))
+        header_size = sum(BYTES_FOR.values()) + bytes_for_file_path
+        file_header.header_array = bytearray(archive.read(header_size))
 
         archive.seek(original_seek, os.SEEK_SET)
         return file_header
 
     @staticmethod
-    def from_file(file_path: Union[str, bytes, PathLike]) -> 'FileHeader':
+    def from_file(file_path: Union[str, bytes, PathLike], depth: int = 0) -> 'FileHeader':
+        file_path = Path(file_path).resolve()
+        file_path_relative = file_path.resolve().name
+        if depth > 0:
+            for directory in reversed(file_path.parts[-depth - 1:-1]):
+                file_path_relative = Path(directory) / file_path_relative
+
         file_header = FileHeader()
-        file_header.file_path = file_path
-        file_header.file_timestamp = path.getatime(file_path)
-        file_header.file_size = path.getsize(file_path)
+        header_array_size = sum(BYTES_FOR.values()) + len(str(file_path_relative))
+        file_header.header_array = bytearray(header_array_size)
+        file_header.file_timestamp = file_path.stat().st_mtime
+        file_header.file_size = file_path.stat().st_size
+        file_header.file_path_length = len(str(file_path_relative))
+        file_header.file_path = file_path_relative
         return file_header
