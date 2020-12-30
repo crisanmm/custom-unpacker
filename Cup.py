@@ -3,6 +3,7 @@ import time
 from pathlib import Path
 from os import PathLike
 from typing import *
+from typing import BinaryIO
 
 from FileHeader import FileHeader
 
@@ -61,7 +62,7 @@ class Cup:
 
         current_offset = sum(map(lambda header: header.header_size, file_header_list))
         for file_header in file_header_list:
-            file_header.set_offset(current_offset)
+            file_header.file_offset = current_offset
             current_offset += file_header.file_size
         return file_header_list
 
