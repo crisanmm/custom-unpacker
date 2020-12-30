@@ -10,7 +10,7 @@ from FileHeader import FileHeader
 CHUNK_SIZE = 512
 
 
-def _process_renaming(renaming: Sequence[Tuple[Union[int, str], str]],
+def _resolve_renaming(renaming: Sequence[Tuple[Union[int, str], str]],
                       file_header_list: List[FileHeader]) -> Dict[str, str]:
     def map_rename(t):
         original_name, changed_name = t
@@ -23,12 +23,21 @@ def _process_renaming(renaming: Sequence[Tuple[Union[int, str], str]],
     return {original_name: changed_name for original_name, changed_name in renaming}
 
 
-def _process_file_header_list(renaming: Dict[str, str],
+def _resolve_file_header_list(renaming: Dict[str, str],
                               file_header_list: List[FileHeader]) -> List[FileHeader]:
     file_header_list = list(filter(lambda fh: fh.file_path in renaming.keys(), file_header_list))
     for file_header in file_header_list:
         file_header.file_path = renaming.get(file_header.file_path)
     return file_header_list
+
+
+def _resolve_dirs(*paths: Union[str, bytes, PathLike]) -> List[Union[str, bytes, PathLike]]:
+    paths = list(map(lambda path: Path(path), paths))
+    for index, p in enumerate(paths):
+        if p.is_dir():
+            paths.pop(index)
+            paths.extend(p.iterdir())
+    return paths
 
 
 class Cup:
@@ -50,14 +59,18 @@ class Cup:
         return file_header_list
 
     @staticmethod
-    def header_list_from_files(*file_paths: Union[str, bytes, PathLike]) -> List[FileHeader]:
+    def header_list_from_paths(*paths: Union[str, bytes, PathLike],
+                               depth: int = 0) -> List[FileHeader]:
         file_header_list = []
-        for file_path in file_paths:
-            if (Path.cwd() / Path(file_path)).exists():
-                # print('file exists')
-                file_header_list.append(FileHeader.from_file(file_path))
+        for path in paths:
+            path = Path(path).resolve()
+            if path.exists():
+                if path.is_file():
+                    file_header_list.append(FileHeader.from_file(path, depth=depth))
+                elif path.is_dir():
+                    directory_file_header_list = Cup.header_list_from_paths(*path.iterdir(), depth=depth + 1)
+                    file_header_list.extend(directory_file_header_list)
             else:
-                # print("file doesn't exist")
                 pass
 
         current_offset = sum(map(lambda header: header.header_size, file_header_list))
@@ -67,14 +80,16 @@ class Cup:
         return file_header_list
 
     @staticmethod
-    def pack(*file_paths: Union[str, bytes, PathLike],
+    def pack(*paths: Union[str, bytes, PathLike],
              archive_name: Union[str, bytes, PathLike] = "archive.cup") -> None:
-        file_header_list = Cup.header_list_from_files(*file_paths)
+        file_header_list = Cup.header_list_from_paths(*paths)
+        file_paths = _resolve_dirs(*paths)
+
         with open(archive_name, 'wb') as archive:
             for file_header in file_header_list:
                 archive.write(file_header.header_array)
-            for file_path in file_paths:
-                with open(file_path, 'rb') as file:
+            for path in file_paths:
+                with open(path, 'rb') as file:
                     while chunk := file.read(CHUNK_SIZE):
                         archive.write(chunk)
 
@@ -99,8 +114,8 @@ class Cup:
         Cup._create_destination_path(destination_path)
 
         if renaming:
-            renaming = _process_renaming(renaming, file_header_list)
-            file_header_list = _process_file_header_list(renaming, file_header_list)
+            renaming = _resolve_renaming(renaming, file_header_list)
+            file_header_list = _resolve_file_header_list(renaming, file_header_list)
 
         os.chdir(destination_path)
         with open(archive_path, 'rb') as archive:
