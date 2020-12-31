@@ -1,5 +1,10 @@
 """
 Provides the main functionality of Cup.
+
+Provides implementation for the following functions:
+pack -- Pack files into an archive.
+unpack -- Unpack files from an archive.
+info -- Get information about the files in an archive.
 """
 
 from pathlib import Path
@@ -26,7 +31,7 @@ def pack(*paths: Union[str, bytes, PathLike],
     :param paths: Variable length argument that specifies a list of files or directories to be added to the archive.
     :param archive_name: Name of the archive where all files will be added.
     """
-    file_header_list, file_path_list = _header_list_from_paths(*paths)
+    file_header_list, file_path_list = _header_path_list_from_paths(*paths)
     if Path(os.path.abspath(archive_name)) in file_path_list:
         raise ArchiveExistsError(archive_name)
 
@@ -40,6 +45,15 @@ def pack(*paths: Union[str, bytes, PathLike],
 
 
 def info(archive_path: Union[str, bytes, PathLike]) -> List[Tuple[int, int, int, str]]:
+    """Get information about an archive.
+
+    Gets all the information about the files in this archive using the file headers from the archive file
+    specified in the `archive_path` argument.
+
+    :param archive_path: Path of the archive.
+    :return: 4-tuple containing information about the file, of the form
+     (index in archive, size, timestamp of last modification, path).
+    """
     file_header_list = _header_list_from_archive(archive_path)
 
     # print(f'{"No":5}{"Size":12}{"Last access time":25}Name')
@@ -53,6 +67,17 @@ def info(archive_path: Union[str, bytes, PathLike]) -> List[Tuple[int, int, int,
 def unpack(*renaming: Tuple[Union[int, str], str],
            archive_path: Union[str, bytes, PathLike],
            destination_path: Union[str, bytes, PathLike]) -> None:
+    """Unpack the archive.
+
+    Unpacks the archive specified by the `archive_path` argument into the destination path specified
+    by the `destination_path` argument. The `renaming` variable length argument consists of tuples of the form
+    (old file name in archive, new file name), instead of specifying the file path you can use its index in
+    the archive as well.
+
+    :param renaming: Optional argument specifying renaming of files.
+    :param archive_path: Path of the archive to unpack.
+    :param destination_path: Path where the archive will be unpacked.
+    """
     archive_path = Path(archive_path).resolve()
     file_header_list = _header_list_from_archive(archive_path)
     previous_working_directory = os.getcwd()
@@ -73,6 +98,15 @@ def unpack(*renaming: Tuple[Union[int, str], str],
 
 def _resolve_renaming(renaming: Sequence[Tuple[Union[int, str], str]],
                       file_header_list: List[FileHeader]) -> Dict[str, str]:
+    """Internal function.
+
+    Used for archive unpacking. Processes (file index, new file name) type of renamings.
+
+    :param renaming: Renaming argument passed to the `unpack` function.
+    :param file_header_list: Archive's list of file headers.
+    :return: Resolved renaming.
+    """
+
     def map_rename(t):
         original_name, changed_name = t
         if type(original_name) == str:
@@ -86,6 +120,14 @@ def _resolve_renaming(renaming: Sequence[Tuple[Union[int, str], str]],
 
 def _resolve_file_header_list(renaming: Dict[str, str],
                               file_header_list: List[FileHeader]) -> List[FileHeader]:
+    """Internal function.
+
+    Used for unpacking only specified files.
+
+    :param renaming: Renaming argument passed to the unpack function.
+    :param file_header_list: Archive's list of file headers.
+    :return: List of file headers narrowed down only to the files specified.
+    """
     file_header_list = list(filter(lambda fh: fh.file_path in renaming.keys(), file_header_list))
     for file_header in file_header_list:
         file_header.file_path = renaming.get(file_header.file_path)
@@ -93,6 +135,13 @@ def _resolve_file_header_list(renaming: Dict[str, str],
 
 
 def _header_list_from_archive(archive_path: Union[str, bytes, PathLike]) -> List[FileHeader]:
+    """Internal function.
+
+    Used for unpacking archives and getting information about the files in the archives.
+
+    :param archive_path: Path to the archive.
+    :return: List of file headers.
+    """
     file_header_list = []
     with open(archive_path, 'rb') as archive:
         file_header = FileHeader.from_archive(archive)
@@ -109,8 +158,16 @@ def _header_list_from_archive(archive_path: Union[str, bytes, PathLike]) -> List
     return file_header_list
 
 
-def _header_list_from_paths(*paths: Union[str, bytes, PathLike],
-                            depth: int = 0) -> Tuple[List[FileHeader], List[Union[str, bytes, PathLike]]]:
+def _header_path_list_from_paths(*paths: Union[str, bytes, PathLike],
+                                 depth: int = 0) -> Tuple[List[FileHeader], List[Union[str, bytes, PathLike]]]:
+    """Internal function.
+
+    Used for packing files into an archive, the function parses directories and creates a list of file headers.
+s
+    :param paths: Paths argument passed to the pack function.
+    :param depth: Should be 0 when called, used for going through directories.
+    :return: 2-tuple containing list of file headers and list of paths to files.
+    """
     file_header_list = []
     file_path_list = []
     for path in paths:
@@ -121,7 +178,7 @@ def _header_list_from_paths(*paths: Union[str, bytes, PathLike],
                 file_path_list.append(path)
             elif path.is_dir():
                 directory_file_header_list, directory_file_path_list = \
-                    _header_list_from_paths(*path.iterdir(), depth=depth + 1)
+                    _header_path_list_from_paths(*path.iterdir(), depth=depth + 1)
                 file_header_list.extend(directory_file_header_list)
                 file_path_list.extend(directory_file_path_list)
         else:
@@ -136,6 +193,12 @@ def _header_list_from_paths(*paths: Union[str, bytes, PathLike],
 
 
 def _create_destination_path(destination_path: Union[str, bytes, PathLike]) -> None:
+    """Internal function.
+
+    Used when unpacking an archive, creates the destination path.
+
+    :param destination_path: Path to directory where to unpack.
+    """
     destination_path = Path(destination_path)
     if not destination_path.exists():
         destination_path.mkdir(parents=True)
@@ -143,6 +206,12 @@ def _create_destination_path(destination_path: Union[str, bytes, PathLike]) -> N
 
 
 def _create_file_path(file_path: Union[str, bytes, PathLike]) -> None:
+    """Internal function
+
+    Used when unpacking an archive, creates the path to the file.
+
+    :param file_path: Path to the file to be created.
+    """
     file_path = Path(file_path)
     if not file_path.exists():
         if not file_path.parent.exists():
@@ -153,6 +222,14 @@ def _create_file_path(file_path: Union[str, bytes, PathLike]) -> None:
 
 
 def _unpack_file(file_header: FileHeader, archive_file_object: BinaryIO) -> None:
+    """Internal function.
+
+    Used when unpacking an archive, extracts the file from the archive into the path specified
+    in the file header.
+
+    :param file_header: File's header from the archive.
+    :param archive_file_object: Archive file object.
+    """
     with open(file_header.file_path, 'wb') as file:
         archive_file_object.seek(file_header.file_offset, os.SEEK_SET)
         bytes_to_read = file_header.file_size
