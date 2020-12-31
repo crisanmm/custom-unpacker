@@ -31,15 +31,6 @@ def _resolve_file_header_list(renaming: Dict[str, str],
     return file_header_list
 
 
-def _resolve_dirs(*paths: Union[str, bytes, PathLike]) -> List[Union[str, bytes, PathLike]]:
-    paths = list(map(lambda path: Path(path), paths))
-    for index, p in enumerate(paths):
-        if p.is_dir():
-            paths.pop(index)
-            paths.extend(p.iterdir())
-    return paths
-
-
 class Cup:
     @staticmethod
     def header_list_from_archive(archive_path: Union[str, bytes, PathLike]) -> List[FileHeader]:
@@ -60,35 +51,39 @@ class Cup:
 
     @staticmethod
     def header_list_from_paths(*paths: Union[str, bytes, PathLike],
-                               depth: int = 0) -> List[FileHeader]:
+                               depth: int = 0) -> Tuple[List[FileHeader], List[Union[str, bytes, PathLike]]]:
         file_header_list = []
+        file_path_list = []
         for path in paths:
             path = Path(path).resolve()
             if path.exists():
                 if path.is_file():
                     file_header_list.append(FileHeader.from_file(path, depth=depth))
+                    file_path_list.append(path)
                 elif path.is_dir():
-                    directory_file_header_list = Cup.header_list_from_paths(*path.iterdir(), depth=depth + 1)
+                    directory_file_header_list, directory_file_path_list = \
+                        Cup.header_list_from_paths(*path.iterdir(), depth=depth + 1)
                     file_header_list.extend(directory_file_header_list)
+                    file_path_list.extend(directory_file_path_list)
             else:
                 pass
 
-        current_offset = sum(map(lambda header: header.header_size, file_header_list))
-        for file_header in file_header_list:
-            file_header.file_offset = current_offset
-            current_offset += file_header.file_size
-        return file_header_list
+        if depth == 0:
+            current_offset = sum(map(lambda header: header.header_size, file_header_list))
+            for file_header in file_header_list:
+                file_header.file_offset = current_offset
+                current_offset += file_header.file_size
+        return file_header_list, file_path_list
 
     @staticmethod
     def pack(*paths: Union[str, bytes, PathLike],
              archive_name: Union[str, bytes, PathLike] = "archive.cup") -> None:
-        file_header_list = Cup.header_list_from_paths(*paths)
-        file_paths = _resolve_dirs(*paths)
+        file_header_list, file_path_list = Cup.header_list_from_paths(*paths)
 
         with open(archive_name, 'wb') as archive:
             for file_header in file_header_list:
                 archive.write(file_header.header_array)
-            for path in file_paths:
+            for path in file_path_list:
                 with open(path, 'rb') as file:
                     while chunk := file.read(CHUNK_SIZE):
                         archive.write(chunk)
@@ -97,10 +92,10 @@ class Cup:
     def list(archive_path: Union[str, bytes, PathLike]) -> List[FileHeader]:
         file_header_list = Cup.header_list_from_archive(archive_path)
 
-        print(f'{"No":3}{"Size":12}{"Last access time":25}Name')
+        print(f'{"No":5}{"Size":12}{"Last access time":25}Name')
         for index, file_header in enumerate(file_header_list):
             print(
-                f"""{str(index + 1):3}{str(file_header.file_size):12}{time.ctime(file_header.file_timestamp):25}{file_header.file_path}""")
+                f"""{str(index + 1):5}{str(file_header.file_size):12}{time.ctime(file_header.file_timestamp):25}{file_header.file_path}""")
         return file_header_list
 
     @staticmethod
