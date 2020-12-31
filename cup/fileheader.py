@@ -93,8 +93,8 @@ class FileHeader:
 
     @staticmethod
     def from_file(file_path: Union[str, bytes, PathLike], depth: int = 0) -> 'FileHeader':
-        file_path = Path(file_path).resolve()
-        file_path_relative = file_path.resolve().name
+        file_path = Path(file_path)
+        file_path_relative = file_path.name
         if depth > 0:
             for directory in reversed(file_path.parts[-depth - 1:-1]):
                 file_path_relative = Path(directory) / file_path_relative
