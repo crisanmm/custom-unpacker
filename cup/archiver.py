@@ -16,6 +16,7 @@ from .fileheader import FileHeader
 from .exceptions import *
 
 CHUNK_SIZE = 4096
+FILE_SIGNATURE = b'__C__U__P__'
 
 
 def pack(*paths: Union[str, bytes, PathLike],
@@ -33,9 +34,12 @@ def pack(*paths: Union[str, bytes, PathLike],
     """
     file_header_list, file_path_list = _header_path_list_from_paths(*paths)
     if Path(os.path.abspath(archive_name)) in file_path_list:
-        raise ArchiveExistsError(archive_name)
+        raise ArchiveAlreadyExistsError(archive_name)
 
     with open(archive_name, 'wb') as archive:
+        # Write file signature
+        archive.write(FILE_SIGNATURE)
+
         for file_header in file_header_list:
             archive.write(file_header.header_array)
         for path in file_path_list:
@@ -56,8 +60,6 @@ def info(archive_path: Union[str, bytes, PathLike]) -> List[Tuple[int, int, int,
     """
     file_header_list = _header_list_from_archive(archive_path)
 
-    # print(f'{"No":5}{"Size":12}{"Last access time":25}Name')
-    # f"""{str(index + 1):5}{str(fh.file_size):12}{time.ctime(fh.file_timestamp):25}{fh.file_path}"""
     file_info_list = []
     for index, fh in enumerate(file_header_list):
         file_info_list.append((index, fh.file_size, fh.file_timestamp, fh.file_path))
@@ -110,8 +112,10 @@ def _resolve_renaming(renaming: Sequence[Tuple[Union[int, str], str]],
     def map_rename(t):
         original_name, changed_name = t
         if type(original_name) == str:
-            return t
+            # no renaming by index given
+            return original_name, changed_name
         elif type(original_name) == int:
+            # renaming by index given, resolve index to actual file path
             return file_header_list[original_name - 1].file_path, changed_name
 
     renaming = map(map_rename, renaming)
@@ -129,8 +133,9 @@ def _resolve_file_header_list(renaming: Dict[str, str],
     :return: List of file headers narrowed down only to the files specified.
     """
     file_header_list = list(filter(lambda fh: fh.file_path in renaming.keys(), file_header_list))
-    for file_header in file_header_list:
-        file_header.file_path = renaming.get(file_header.file_path)
+    file_header_list = list(map(lambda fh: fh.with_different_path(renaming[fh.file_path]), file_header_list))
+    # for file_header in file_header_list:
+    #     file_header.file_path = renaming.get(file_header.file_path)
     return file_header_list
 
 
@@ -142,13 +147,20 @@ def _header_list_from_archive(archive_path: Union[str, bytes, PathLike]) -> List
     :param archive_path: Path to the archive.
     :return: List of file headers.
     """
+    if not Path(archive_path).exists():
+        raise ArchiveNonExistentError(archive_path)
+
     file_header_list = []
     with open(archive_path, 'rb') as archive:
+        # Check for file signature
+        if archive.read(len(FILE_SIGNATURE)) != FILE_SIGNATURE:
+            raise ArchiveNotRecognizableError(archive_path)
+
         file_header = FileHeader.from_archive(archive)
         file_header_list.append(file_header)
         header_list_sentinel = file_header.file_offset
 
-        current_seek = archive.seek(file_header.header_size, os.SEEK_SET)
+        current_seek = archive.seek(file_header.header_size, os.SEEK_CUR)
         while current_seek < header_list_sentinel:
             file_header = FileHeader.from_archive(archive)
             file_header_list.append(file_header)
@@ -163,7 +175,7 @@ def _header_path_list_from_paths(*paths: Union[str, bytes, PathLike],
     """Internal function.
 
     Used for packing files into an archive, the function parses directories and creates a list of file headers.
-s
+
     :param paths: Paths argument passed to the pack function.
     :param depth: Should be 0 when called, used for going through directories.
     :return: 2-tuple containing list of file headers and list of paths to files.
@@ -172,7 +184,9 @@ s
     file_path_list = []
     for path in paths:
         path = Path(os.path.abspath(path))
-        if path.exists():
+        if not path.exists():
+            raise ResourceNonExistentError(str(path))
+        else:
             if path.is_file():
                 file_header_list.append(FileHeader.from_file(path, depth=depth))
                 file_path_list.append(path)
@@ -181,11 +195,11 @@ s
                     _header_path_list_from_paths(*path.iterdir(), depth=depth + 1)
                 file_header_list.extend(directory_file_header_list)
                 file_path_list.extend(directory_file_path_list)
-        else:
-            pass
+            else:
+                raise ResourceCantBeArchivedError(str(path))
 
     if depth == 0:
-        current_offset = sum(map(lambda header: header.header_size, file_header_list))
+        current_offset = len(FILE_SIGNATURE) + sum(map(lambda header: header.header_size, file_header_list))
         for file_header in file_header_list:
             file_header.file_offset = current_offset
             current_offset += file_header.file_size
