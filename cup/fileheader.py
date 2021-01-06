@@ -1,3 +1,5 @@
+"""Contains the FileHeader class."""
+
 import os
 from os import PathLike
 from pathlib import Path
@@ -95,6 +97,15 @@ class FileHeader:
         file_path = str(file_path)
         bytes_for_file_path = len(file_path)
         self.header_array[18:18 + bytes_for_file_path] = file_path.encode()
+
+    def with_different_path(self, new_file_path: Union[str, bytes, PathLike]) -> 'FileHeader':
+        file_header = FileHeader()
+        header_array_size = sum(BYTES_FOR.values()) + len(str(new_file_path))
+        file_header.header_array = bytearray(header_array_size)
+        file_header.header_array[0:sum(BYTES_FOR.values())] = self.header_array[0:sum(BYTES_FOR.values())]
+        file_header.file_path_length = len(str(new_file_path))
+        file_header.file_path = new_file_path
+        return file_header
 
     @staticmethod
     def from_archive(archive: BinaryIO, header_position: int = 0) -> 'FileHeader':
