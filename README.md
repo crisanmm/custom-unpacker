@@ -46,13 +46,14 @@ For the pack example above, it could return a list of these tuples:
 ```python
 (0, 1069, 1606983204, 'LICENSE')
 (1, 2711, 1610040784, 'README.md')
-(2, 6148, 1609351145, 'dev/.DS_Store')
 (3, 21, 1609338740, 'dev/dir/dir2/anotherfile.txt')
 (4, 6488, 1609350881, 'dev/dir/dir2/dir2file.py')
 (5, 289, 1609068210, 'dev/dir/file2.txt')
 (6, 1368, 1608816734, 'dev/file.txt')
 (7, 219, 1609417379, 'dev/myarchive.cup')
 ```
+
+Each tuple has the format: `(index in archive, file size in bytes, UNIX timestamp of last file change, file path`
 
 ## The archive file format
 
@@ -83,14 +84,14 @@ Its contents consist of:
 
 Example of a file header in hexadecimal notation, separated as shown above, in little endian order:
 
-E600000000000000 5E98E45F 58050000 0C00 6465762F66696C652E747874
+`E600000000000000 5E98E45F 58050000 0C00 6465762F66696C652E747874`
 
 From this file header we can deduce the following:
 
-* E600000000000000 - the file contents start at byte 230 in the archive
-* 5E98E45F - the most recent file modification has been done at `12/24/2020 @ 1:32pm (UTC)`
-* 58050000 - the file contains 1368 bytes
-* 0C00 - the length of the file path in this case is of 12 bytes
-* 6465762F66696C652E747874 - ASCII encoded file path, equivalent to `dev/file.txt`
+* `E600000000000000` - the file contents start at byte 230 in the archive
+* `5E98E45F` - the most recent file modification has been done at `12/24/2020 @ 1:32pm (UTC)`
+* `58050000` - the file contains 1368 bytes
+* `0C00` - the length of the file path in this case is of 12 bytes
+* `6465762F66696C652E747874` - ASCII encoded file path, equivalent to `dev/file.txt`
 
 PEP 257, PEP 8
