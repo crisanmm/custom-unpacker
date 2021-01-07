@@ -87,8 +87,9 @@ def unpack(*renaming: Tuple[Union[int, str], str],
     _create_destination_path(destination_path)
 
     if renaming:
-        renaming = _resolve_renaming(renaming, file_header_list)
-        file_header_list = _resolve_file_header_list(renaming, file_header_list)
+        renaming = {original_name: changed_name for original_name, changed_name in renaming}
+        file_header_list = filter(lambda fh: fh.file_path in renaming.keys(), file_header_list)
+        file_header_list = list(map(lambda fh: fh.with_different_path(renaming[fh.file_path]), file_header_list))
 
     os.chdir(destination_path)
     with open(archive_path, 'rb') as archive:
@@ -96,47 +97,6 @@ def unpack(*renaming: Tuple[Union[int, str], str],
             _create_file_path(file_header.file_path)
             _unpack_file(file_header, archive)
     os.chdir(previous_working_directory)
-
-
-def _resolve_renaming(renaming: Sequence[Tuple[Union[int, str], str]],
-                      file_header_list: List[FileHeader]) -> Dict[str, str]:
-    """Internal function.
-
-    Used for archive unpacking. Processes (file index, new file name) type of renamings.
-
-    :param renaming: Renaming argument passed to the `unpack` function.
-    :param file_header_list: Archive's list of file headers.
-    :return: Resolved renaming.
-    """
-
-    def map_rename(t):
-        original_name, changed_name = t
-        if type(original_name) == str:
-            # no renaming by index given
-            return original_name, changed_name
-        elif type(original_name) == int:
-            # renaming by index given, resolve index to actual file path
-            return file_header_list[original_name - 1].file_path, changed_name
-
-    renaming = map(map_rename, renaming)
-    return {original_name: changed_name for original_name, changed_name in renaming}
-
-
-def _resolve_file_header_list(renaming: Dict[str, str],
-                              file_header_list: List[FileHeader]) -> List[FileHeader]:
-    """Internal function.
-
-    Used for unpacking only specified files.
-
-    :param renaming: Renaming argument passed to the unpack function.
-    :param file_header_list: Archive's list of file headers.
-    :return: List of file headers narrowed down only to the files specified.
-    """
-    file_header_list = list(filter(lambda fh: fh.file_path in renaming.keys(), file_header_list))
-    file_header_list = list(map(lambda fh: fh.with_different_path(renaming[fh.file_path]), file_header_list))
-    # for file_header in file_header_list:
-    #     file_header.file_path = renaming.get(file_header.file_path)
-    return file_header_list
 
 
 def _header_list_from_archive(archive_path: Union[str, bytes, PathLike]) -> List[FileHeader]:
