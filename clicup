@@ -5,7 +5,6 @@ import argparse
 
 if __name__ == "__main__":
     parent_parser = argparse.ArgumentParser(description="CLI tool for Cup (Custom Unpacker-Packer)")
-    # parent_parser.print_help(sys.stdout)
 
     subparsers = parent_parser.add_subparsers(dest="subparser", title="available commands")
 
@@ -40,7 +39,7 @@ if __name__ == "__main__":
         cup.unpack(archive_path=args.input_file, destination_path=args.output_dir)
     elif command == "info":
         archive_info = cup.info(args.archive_path)
-        print(f'{"No":7}{"Size":12}{"Time of last change":25}Path')
+        print(f'{"No":7}{"Size":12}{"Time of last file change":25}Path')
         for index, size, timestamp, path in archive_info:
             print(f'{str(index + 1):7}{str(size):12}{time.ctime(timestamp):25}{path}')
     else:
