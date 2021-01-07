@@ -73,10 +73,9 @@ def unpack(*renaming: Tuple[Union[int, str], str],
 
     Unpacks the archive specified by the `archive_path` argument into the destination path specified
     by the `destination_path` argument. The `renaming` variable length argument consists of tuples of the form
-    (old file name in archive, new file name), instead of specifying the file path you can use its index in
-    the archive as well.
+    (old file name in archive, new file name).
 
-    :param renaming: Optional argument specifying renaming of files.
+    :param renaming: Optional variable length argument specifying renaming of files.
     :param archive_path: Path of the archive to unpack.
     :param destination_path: Path where the archive will be unpacked.
     """
