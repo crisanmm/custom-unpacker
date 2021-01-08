@@ -53,7 +53,7 @@ For the pack example above, it could return a list of these tuples:
 (7, 219, 1609417379, 'dev/myarchive.cup')
 ```
 
-Each tuple has the format: `(index in archive, file size in bytes, UNIX timestamp of last file change, file path`
+Each tuple has the format: `(index in archive, file size in bytes, UNIX timestamp of last file change, file path)`
 
 ## The archive file format
 
