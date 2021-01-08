@@ -1,10 +1,14 @@
 #!/usr/local/bin/python3
 import cup
+import cup.exceptions
 import time
+import logging
 import argparse
 
 if __name__ == "__main__":
     parent_parser = argparse.ArgumentParser(description="CLI tool for Cup (Custom Unpacker-Packer)")
+    parent_parser.add_argument("-l", "--logs",
+                               help="output logs to a file")
 
     subparsers = parent_parser.add_subparsers(dest="subparser", title="available commands")
 
@@ -17,6 +21,9 @@ if __name__ == "__main__":
                              help="the path where the archive will be created")
 
     parser_unpack = subparsers.add_parser("unpack")
+    parser_unpack.add_argument("renaming",
+                               nargs="*",
+                               help="optional argument used for file renaming or exact file extraction")
     parser_unpack.add_argument("-i", "--input-file",
                                required=True,
                                help="the input archive")
@@ -30,17 +37,31 @@ if __name__ == "__main__":
                              help="the path to the archive to get information about")
 
     args = parent_parser.parse_args()
+    logs_filename = "/dev/null"
+    if args.logs:
+        logs_filename = args.logs
+    logging.basicConfig(filename=logs_filename, level=logging.DEBUG, format="%(asctime)s:%(levelname)s:%(message)s")
     # print(args)
 
     command = args.subparser
-    if command == "pack":
-        cup.pack(*args.paths, archive_name=args.output_file)
-    elif command == "unpack":
-        cup.unpack(archive_path=args.input_file, destination_path=args.output_dir)
-    elif command == "info":
-        archive_info = cup.info(args.archive_path)
-        print(f'{"No":7}{"Size":12}{"Time of last file change":25}Path')
-        for index, size, timestamp, path in archive_info:
-            print(f'{str(index + 1):7}{str(size):12}{time.ctime(timestamp):25}{path}')
-    else:
-        parent_parser.print_usage()
+    try:
+        if command == "pack":
+            cup.pack(*args.paths, archive_name=args.output_file)
+        elif command == "unpack":
+            # print(args.renaming)
+            renaming = list(map(lambda rename: tuple(rename.split('=')), args.renaming))
+            # print(renaming)
+            renaming = list(
+                map(lambda rename_tuple: (rename_tuple[0], rename_tuple[0]) if len(rename_tuple) == 1 else rename_tuple,
+                    renaming))
+            # print(renaming)
+            cup.unpack(*renaming, archive_path=args.input_file, destination_path=args.output_dir)
+        elif command == "info":
+            archive_info = cup.info(args.archive_path)
+            print(f'{"No":7}{"Size":12}{"Time of last file change":25}Path')
+            for index, size, timestamp, path in archive_info:
+                print(f'{str(index + 1):7}{str(size):12}{time.ctime(timestamp):25}{path}')
+        else:
+            parent_parser.print_usage()
+    except cup.exceptions.CupException as ce:
+        print(ce)
