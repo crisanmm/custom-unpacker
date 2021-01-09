@@ -27,9 +27,9 @@ def pack(*paths: Union[str, bytes, PathLike],
          archive_name: Union[str, bytes, PathLike] = "archive.cup") -> None:
     """Pack files/directories into an archive.
 
-    The files/directories specified in the `paths` variable length argument are
-    packed into an archive with the name specified by the `archive_name` keyword argument.
-    Only the basename of the specified files in `paths` will be kept. If a path to a directory is passed
+    The files/directories specified in the *paths* variable length argument are
+    packed into an archive with the name specified by the *archive_name* keyword argument.
+    Only the basename of the specified files in *paths* will be kept. If a path to a directory is passed
     then the basename of it will be kept and all the other files inside it will have the path relative to
     the directory.
 
@@ -58,7 +58,7 @@ def info(archive_path: Union[str, bytes, PathLike]) -> List[Tuple[int, int, int,
     """Get information about an archive.
 
     Gets all the information about the files in this archive using the file headers from the archive file
-    specified in the `archive_path` argument.
+    specified in the *archive_path* argument.
 
     :param archive_path: Path of the archive.
     :return: 4-tuple containing information about the file, of the form
@@ -78,8 +78,8 @@ def unpack(*renaming: Tuple[Union[int, str], str],
            destination_path: Union[str, bytes, PathLike]) -> None:
     """Unpack the archive.
 
-    Unpacks the archive specified by the `archive_path` argument into the destination path specified
-    by the `destination_path` argument. The `renaming` variable length argument consists of tuples of the form
+    Unpacks the archive specified by the *archive_path* argument into the destination path specified
+    by the *destination_path* argument. The *renaming* variable length argument consists of tuples of the form
     (old file name in archive, new file name).
 
     :param renaming: Optional variable length argument specifying renaming of files.

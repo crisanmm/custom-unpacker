@@ -25,7 +25,7 @@ class FileHeader:
     - 4 bytes: UNIX timestamp of the time of the last modification.
     - 4 bytes: file size.
     - 2 bytes: the length of the file path.
-    - `n` bytes: the path of the file, where the characters are ASCII encoded.
+    - *n* bytes: the path of the file, where the characters are ASCII encoded.
     """
 
     def __init__(self):
@@ -99,6 +99,15 @@ class FileHeader:
         self.header_array[18:18 + bytes_for_file_path] = file_path.encode()
 
     def with_different_path(self, new_file_path: Union[str, bytes, PathLike]) -> 'FileHeader':
+        """Create FileHeader object with different file path.
+
+        Used for performing file renaming when unpacking an archive. The *new_file_path* argument specifies what the new
+        FileHeader's file path will be. The *FileHeader* object on which this method is called is not modified, instead
+        this function returns a copy of that object only with the *file_path_length* and *file_path* properties modified.
+
+        :param new_file_path: The new file path to be used.
+        :return: FileHeader object with different file path.
+        """
         file_header = FileHeader()
         header_array_size = sum(BYTES_FOR.values()) + len(str(new_file_path))
         file_header.header_array = bytearray(header_array_size)
