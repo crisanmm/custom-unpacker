@@ -46,14 +46,14 @@ For the pack example above, it could return a list of these tuples:
 ```python
 (0, 1069, 1606983204, 'LICENSE')
 (1, 2711, 1610040784, 'README.md')
-(3, 21, 1609338740, 'dev/dir/dir2/anotherfile.txt')
-(4, 6488, 1609350881, 'dev/dir/dir2/dir2file.py')
-(5, 289, 1609068210, 'dev/dir/file2.txt')
-(6, 1368, 1608816734, 'dev/file.txt')
-(7, 219, 1609417379, 'dev/myarchive.cup')
+(2, 21, 1609338740, 'dev/dir/dir2/anotherfile.txt')
+(3, 6488, 1609350881, 'dev/dir/dir2/dir2file.py')
+(4, 289, 1609068210, 'dev/dir/file2.txt')
+(5, 1368, 1608816734, 'dev/file.txt')
+(6, 219, 1609417379, 'dev/myarchive.cup')
 ```
 
-Each tuple has the format: `(index in archive, file size in bytes, UNIX timestamp of last file change, file path`
+Each tuple has the format: `(index in archive, file size in bytes, UNIX timestamp of last file change, file path)`
 
 ## The archive file format
 
