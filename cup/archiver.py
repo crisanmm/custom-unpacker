@@ -9,8 +9,7 @@ info -- Get information about the files in an archive.
 
 from pathlib import Path
 from os import PathLike
-from typing import *
-from typing import BinaryIO
+from typing import BinaryIO, Union, List, Tuple
 import logging
 
 from .fileheader import FileHeader
@@ -20,11 +19,8 @@ CHUNK_SIZE = 4096
 FILE_SIGNATURE = b'__C__U__P__'
 
 
-# logging.basicConfig(filename="cup.log", level=logging.DEBUG, format="%(asctime)s:%(levelname)s:%(message)s")
-
-
 def pack(*paths: Union[str, bytes, PathLike],
-         archive_name: Union[str, bytes, PathLike] = "archive.cup") -> None:
+         archive_name: Union[str, bytes, PathLike] = 'archive.cup') -> None:
     """Pack files/directories into an archive.
 
     The files/directories specified in the *paths* variable length argument are
@@ -40,7 +36,7 @@ def pack(*paths: Union[str, bytes, PathLike],
     if Path(os.path.abspath(archive_name)) in file_path_list:
         raise ArchiveAlreadyExistsError(archive_name)
 
-    logging.info(f"packing {paths} to {archive_name}...")
+    logging.info(f'packing {paths} to {archive_name}...')
     with open(archive_name, 'wb') as archive:
         # Write file signature
         archive.write(FILE_SIGNATURE)
@@ -51,7 +47,7 @@ def pack(*paths: Union[str, bytes, PathLike],
             with open(path, 'rb') as file:
                 while chunk := file.read(CHUNK_SIZE):
                     archive.write(chunk)
-    logging.info(f"packed {paths} to {archive_name}")
+    logging.info(f'packed {paths} to {archive_name}')
 
 
 def info(archive_path: Union[str, bytes, PathLike]) -> List[Tuple[int, int, int, str]]:
@@ -69,7 +65,7 @@ def info(archive_path: Union[str, bytes, PathLike]) -> List[Tuple[int, int, int,
     file_info_list = []
     for index, fh in enumerate(file_header_list):
         file_info_list.append((index, fh.file_size, fh.file_timestamp, fh.file_path))
-    logging.info(f"gathered info for {archive_path}")
+    logging.info(f'gathered info for {archive_path}')
     return file_info_list
 
 
@@ -98,13 +94,13 @@ def unpack(*renaming: Tuple[Union[int, str], str],
         file_header_list = list(map(lambda fh: fh.with_different_path(renaming[fh.file_path]), file_header_list))
 
     os.chdir(destination_path)
-    logging.info(f"unpacking {archive_path} to {destination_path}...")
+    logging.info(f'unpacking {archive_path} to {destination_path}...')
     with open(archive_path, 'rb') as archive:
         for file_header in file_header_list:
             _create_file_path(file_header.file_path)
             _unpack_file(file_header, archive)
     os.chdir(previous_working_directory)
-    logging.info(f"unpacked {archive_path} to {destination_path}")
+    logging.info(f'unpacked {archive_path} to {destination_path}')
 
 
 def _header_list_from_archive(archive_path: Union[str, bytes, PathLike]) -> List[FileHeader]:
@@ -184,7 +180,7 @@ def _create_destination_path(destination_path: Union[str, bytes, PathLike]) -> N
     destination_path = Path(destination_path)
     if not destination_path.exists():
         destination_path.mkdir(parents=True)
-        logging.info(f"created destination_path: {destination_path}")
+        logging.info(f'created destination_path: {destination_path}')
 
 
 def _create_file_path(file_path: Union[str, bytes, PathLike]) -> None:
@@ -198,12 +194,13 @@ def _create_file_path(file_path: Union[str, bytes, PathLike]) -> None:
     if not file_path.exists():
         if not file_path.parent.exists():
             file_path.parent.mkdir(parents=True)
-            logging.info(f"created file_path.parent: {file_path.parent}")
+            logging.info(f'created file_path.parent: {file_path.parent}')
         file_path.touch()
-        logging.info(f"touched file_path: {file_path}")
+        logging.info(f'touched file_path: {file_path}')
 
 
-def _unpack_file(file_header: FileHeader, archive_file_object: BinaryIO) -> None:
+def _unpack_file(file_header: FileHeader,
+                 archive_file_object: BinaryIO) -> None:
     """Internal function.
 
     Used when unpacking an archive, extracts the file from the archive into the path specified
@@ -212,11 +209,11 @@ def _unpack_file(file_header: FileHeader, archive_file_object: BinaryIO) -> None
     :param file_header: File's header from the archive.
     :param archive_file_object: Archive file object.
     """
-    logging.info(f"writing file: {file_header.file_path}")
+    logging.info(f'writing file: {file_header.file_path}')
     with open(file_header.file_path, 'wb') as file:
         archive_file_object.seek(file_header.file_offset, os.SEEK_SET)
         bytes_to_read = file_header.file_size
         while chunk := archive_file_object.read(min(CHUNK_SIZE, bytes_to_read)):
             bytes_to_read -= min(CHUNK_SIZE, bytes_to_read)
             file.write(chunk)
-    logging.info(f"wrote file: {file_header.file_path}")
+    logging.info(f'wrote file: {file_header.file_path}')

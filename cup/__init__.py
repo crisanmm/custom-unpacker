@@ -8,4 +8,6 @@ a .cup file to get its original contents.
 
 from .archiver import pack, unpack, info
 
-__all__ = ["pack", "unpack", "info"]
+__all__ = ['pack', 'unpack', 'info']
+__version = '1.0.0'
+__author__ = 'Crisan Mihai'

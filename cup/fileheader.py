@@ -3,14 +3,13 @@
 import os
 from os import PathLike
 from pathlib import Path
-from typing import *
-from typing import BinaryIO
+from typing import BinaryIO, Union
 
 BYTES_FOR = {
-    "offset": 8,
-    "timestamp": 4,
-    "file_size": 4,
-    "file_path_length": 2,
+    'offset': 8,
+    'timestamp': 4,
+    'file_size': 4,
+    'file_path_length': 2,
 }
 
 
@@ -117,7 +116,8 @@ class FileHeader:
         return file_header
 
     @staticmethod
-    def from_archive(archive: BinaryIO, header_position: int = 0) -> 'FileHeader':
+    def from_archive(archive: BinaryIO,
+                     header_position: int = 0) -> 'FileHeader':
         """Create FileHeader object from archive.
 
         Used for getting information about a file in the archive and unpacking it.
@@ -139,7 +139,8 @@ class FileHeader:
         return file_header
 
     @staticmethod
-    def from_file(file_path: Union[str, bytes, PathLike], depth: int = 0) -> 'FileHeader':
+    def from_file(file_path: Union[str, bytes, PathLike],
+                  depth: int = 0) -> 'FileHeader':
         """Create FileHeader object from file.
 
         Used for packing a file into an archive.
