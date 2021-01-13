@@ -94,4 +94,6 @@ From this file header we can deduce the following:
 * `0C00` - the length of the file path in this case is of 12 bytes
 * `6465762F66696C652E747874` - ASCII encoded file path, equivalent to `dev/file.txt`
 
-PEP 257, PEP 8
+
+
+The project follows the conventions described in [PEP 8](https://www.python.org/dev/peps/pep-0008/) and [PEP 257](https://www.python.org/dev/peps/pep-0257/).
